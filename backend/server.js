@@ -7,7 +7,7 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
-const PORT = 3000;
+const PORT = 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'cambiar_en_produccion_clave_secreta_123';
 const EMPRESA_DOMINIO = 'tuempresa.com'; // <-- Cambia por el dominio de tu empresa
 
