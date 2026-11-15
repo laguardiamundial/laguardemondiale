@@ -1,0 +1,25 @@
+# Dependencias
+node_modules/
+
+# Entorno
+.env
+.env.local
+.env.production
+
+# Datos de la app (se crean solos al iniciar)
+backend/data/
+backend/uploads/
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store

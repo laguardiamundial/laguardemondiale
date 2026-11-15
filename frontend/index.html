@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mensajería Empresa</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- Pantalla de bienvenida -->
+    <section id="pantalla-inicio" class="pantalla activa">
+      <div class="tarjeta-inicio">
+        <div class="logo">M<sup>E</sup></div>
+        <h1>Mensajería <span class="acento">Empresa</span></h1>
+        <p>App privada de mensajería para la compañía.<br>Acceso solo con credenciales corporativas y código de dispositivo.</p>
+        <div class="botones">
+          <button class="btn btn-principal btn-ancho" id="btn-ingresar">Ingresar</button>
+          <button class="btn btn-secundario btn-ancho" id="btn-registrar">Crear cuenta</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Registro -->
+    <section id="pantalla-registro" class="pantalla oculto">
+      <div class="tarjeta">
+        <button class="btn-volver" id="volver-inicio-registro">← Volver</button>
+        <h2>Crear cuenta</h2>
+        <p class="subtitulo">Solo correos @tuempresa.com</p>
+        <form id="form-registro">
+          <div class="campo">
+            <label>Nombre completo</label>
+            <input type="text" id="reg-nombre" placeholder="Juan Pérez" required />
+          </div>
+          <div class="campo">
+            <label>Correo corporativo</label>
+            <input type="email" id="reg-email" placeholder="juan@tuempresa.com" required />
+          </div>
+          <div class="campo">
+            <label>Contraseña</label>
+            <input type="password" id="reg-password" placeholder="••••••••" required />
+          </div>
+          <button type="submit" class="btn btn-principal btn-ancho">Crear cuenta</button>
+        </form>
+        <button type="button" class="btn btn-texto btn-ancho" id="volver-login-registro">Ya tengo cuenta</button>
+        <div id="msg-registro" class="mensaje error"></div>
+      </div>
+    </section>
+
+    <!-- Login -->
+    <section id="pantalla-login" class="pantalla oculto">
+      <div class="tarjeta">
+        <button class="btn-volver" id="volver-inicio-login">← Volver</button>
+        <h2>Iniciar sesión</h2>
+        <form id="form-login">
+          <div class="campo">
+            <label>Correo corporativo</label>
+            <input type="email" id="log-email" placeholder="juan@tuempresa.com" required />
+          </div>
+          <div class="campo">
+            <label>Contraseña</label>
+            <input type="password" id="log-password" placeholder="••••••••" required />
+          </div>
+          <button type="submit" class="btn btn-principal btn-ancho">Ingresar</button>
+        </form>
+        <button type="button" class="btn btn-texto btn-ancho" id="volver-registro-login">Crear cuenta</button>
+        <div id="msg-login" class="mensaje error"></div>
+      </div>
+    </section>
+
+    <!-- Código único de dispositivo -->
+    <section id="pantalla-codigo" class="pantalla oculto">
+      <div class="tarjeta">
+        <button class="btn-volver" id="volver-codigo">← Volver</button>
+        <h2>Registrar este dispositivo</h2>
+        <p>Esta aplicación generó un código único vinculado a este dispositivo. Guárdalo, solo funciona con esta app.</p>
+        <div class="codigo-box">
+          <span id="codigo-unico" class="codigo">---- ----</span>
+          <button id="btn-copiar-codigo" class="btn btn-secundario btn-icono">Copiar</button>
+        </div>
+        <div class="campo">
+          <label>Nombre del dispositivo</label>
+          <input type="text" id="nombre-dispositivo" placeholder="Mi PC / Mi teléfono" />
+        </div>
+        <button class="btn btn-principal btn-ancho" id="btn-guardar-codigo">He guardado el código</button>
+        <div id="msg-codigo" class="mensaje error"></div>
+      </div>
+    </section>
+
+    <!-- App principal estilo Telegram -->
+    <section id="pantalla-app" class="pantalla oculto">
+      <div class="telegram-wrapper">
+        <!-- Header superior -->
+        <header class="tg-header">
+          <div class="tg-menu" id="btn-abrir-sidebar">☰</div>
+          <div class="tg-header-center">
+            <div class="tg-avatar" id="header-avatar">U</div>
+            <div class="tg-header-info">
+              <div class="tg-nombre" id="header-nombre">Cargando...</div>
+              <div class="tg-estado" id="header-estado">En línea</div>
+            </div>
+          </div>
+          <div class="tg-header-actions">
+            <button class="btn-icono" id="btn-buscar-global">🔍</button>
+            <button class="btn-icono" id="btn-perfil">👤</button>
+            <button class="btn-icono" id="btn-cerrar-sesion-app">Salir</button>
+          </div>
+        </header>
+
+        <div class="tg-body">
+          <!-- Sidebar de contactos -->
+          <aside class="tg-sidebar" id="tg-sidebar">
+            <div class="tg-sidebar-header">
+              <input type="text" id="buscar-contactos" placeholder="Buscar" />
+              <button class="btn-icono" id="btn-nuevo-chat">✏️</button>
+            </div>
+            <div class="tg-contactos" id="lista-contactos">
+              <!-- Se inyectan por JS -->
+            </div>
+          </aside>
+
+          <!-- Chat principal -->
+          <main class="tg-chat" id="tg-chat">
+            <!-- Pantalla vacía -->
+            <div class="tg-vacio" id="tg-vacio">
+              <div class="tg-vacio-icon">💬</div>
+              <h3>Selecciona una conversación</h3>
+              <p>Escoge un contacto para comenzar a chatear.</p>
+            </div>
+
+            <!-- Área de chat activo -->
+            <div class="tg-activo oculto" id="tg-activo">
+              <header class="tg-chat-header">
+                <div class="tg-chat-avatar" id="chat-activo-avatar">C</div>
+                <div class="tg-chat-info">
+                  <div class="tg-chat-nombre" id="chat-activo-nombre">Contacto</div>
+                  <div class="tg-chat-estado" id="chat-activo-estado">En línea</div>
+                </div>
+              </header>
+
+              <div class="tg-mensajes" id="tg-mensajes">
+                <!-- Mensajes inyectados por JS -->
+              </div>
+
+              <form id="form-enviar" class="tg-enviar">
+                <button type="button" class="btn-adjunto" id="btn-adjunto">📎</button>
+                <input type="file" id="input-archivo" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.zip,.mp3,.wav" style="display:none" multiple />
+                <input type="text" id="input-mensaje" placeholder="Escribir un mensaje..." />
+                <button type="submit" class="btn-enviar">➤</button>
+              </form>
+            </div>
+          </main>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
