@@ -5,6 +5,8 @@ const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
+const { Server } = require('socket.io');
 const SQL = require('sql.js');
 
 const app = express();
@@ -27,6 +29,9 @@ app.use('/uploads', express.static(UPLOADS_DIR));
 
 // ---------- Base de datos SQLite (sql.js) ----------
 let db;
+let server;
+let io;
+const usuarioSockets = {}; // usuarioId -> socket.id
 
 async function initDatabase() {
   const SQLPromise = SQL();
@@ -66,6 +71,7 @@ async function initDatabase() {
       destinatario_id TEXT,
       grupo_id TEXT,
       tipo TEXT NOT NULL DEFAULT 'text',
+      categoria TEXT DEFAULT 'general',
       texto TEXT,
       file_path TEXT,
       file_name TEXT,
@@ -128,6 +134,40 @@ function get(db, sql, params = []) {
   const result = stmt.get(params);
   stmt.free();
   return result;
+}
+
+// ---------- Socket.io helpers ----------
+
+function emitirNuevoMensaje(mensaje) {
+  if (!io) return;
+
+  const salas = [];
+
+  // Sala personal del remitente (para que se vea en tiempo real en su pantalla)
+  salas.push(`usuario_${mensaje.remitente_id}`);
+
+  if (mensaje.grupo_id) {
+    // Mensaje de grupo: emitir a la sala del grupo
+    salas.push(`grupo_${mensaje.grupo_id}`);
+  } else if (mensaje.destinatario_id) {
+    // Mensaje individual: emitir a la sala personal del destinatario
+    salas.push(`usuario_${mensaje.destinatario_id}`);
+  }
+
+  // Obtener datos del remitente para incluirlos en el evento
+  const autor = get(db, 'SELECT id, email, nombre, avatar FROM usuarios WHERE id = ?', [mensaje.remitente_id]);
+
+  const mensajeConAutor = {
+    ...mensaje,
+    remitente_email: autor ? autor.email : '',
+    remitente_nombre: autor ? autor.nombre : '',
+    remitente_avatar: autor ? autor.avatar : null
+  };
+
+  // Emitir a todas las salas relevantes
+  salas.forEach(sala => {
+    io.to(sala).emit('nuevo_mensaje', mensajeConAutor);
+  });
 }
 
 // ---------- Helpers ----------
@@ -317,6 +357,7 @@ app.post('/api/mensajes', autenticar, upload.single('archivo'), (req, res) => {
   }
 
   let tipo = 'text';
+  let categoria = 'general';
   let filePath = null, fileName = null, fileSize = null, mimeType = null;
 
   if (archivo) {
@@ -332,13 +373,17 @@ app.post('/api/mensajes', autenticar, upload.single('archivo'), (req, res) => {
     mimeType = archivo.mimetype;
   }
 
+  if (req.body.categoria) {
+    categoria = req.body.categoria;
+  }
+
   const id = uuidv4();
   const creado_en = new Date().toISOString();
 
   run(db, `
-    INSERT INTO mensajes (id, remitente_id, destinatario_id, grupo_id, tipo, texto, file_path, file_name, file_size, mime_type, leido, estado, creado_en)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [id, req.usuario.usuarioId, destinatarioId || null, grupoId || null, tipo, texto || null, filePath, fileName, fileSize, mimeType, 0, 'enviado', creado_en]);
+    INSERT INTO mensajes (id, remitente_id, destinatario_id, grupo_id, tipo, categoria, texto, file_path, file_name, file_size, mime_type, leido, estado, creado_en)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [id, req.usuario.usuarioId, destinatarioId || null, grupoId || null, tipo, categoria, texto || null, filePath, fileName, fileSize, mimeType, 0, 'enviado', creado_en]);
 
   saveDatabase(db);
 
@@ -348,6 +393,7 @@ app.post('/api/mensajes', autenticar, upload.single('archivo'), (req, res) => {
     destinatario_id: destinatarioId || null,
     grupo_id: grupoId || null,
     tipo,
+    categoria,
     texto: texto || null,
     file_path: filePath,
     file_name: fileName,
@@ -358,6 +404,9 @@ app.post('/api/mensajes', autenticar, upload.single('archivo'), (req, res) => {
     leido_en: null,
     creado_en
   };
+
+  // Emitir en tiempo real via WebSocket
+  emitirNuevoMensaje(mensaje);
 
   res.json({ mensaje: 'Mensaje enviado', mensaje });
 });
@@ -555,11 +604,79 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-// Inicializar base de datos y servidor
+// Inicializar base de datos y servidor con Socket.io
 initDatabase().then(database => {
   db = database;
-  app.listen(PORT, () => {
+
+  // Crear servidor HTTP y adjuntar Socket.io
+  server = http.createServer(app);
+  io = new Server(server, {
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST']
+    }
+  });
+
+  // Middleware de autenticación para Socket.io
+  io.use((socket, next) => {
+    const token = socket.handshake.auth?.token;
+    const deviceCode = socket.handshake.auth?.deviceCode;
+
+    if (!token) {
+      return next(new Error('Token de acceso requerido'));
+    }
+
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      socket.usuarioId = decoded.usuarioId;
+      socket.email = decoded.email;
+
+      // Verificar código de dispositivo si se proporciona
+      if (deviceCode) {
+        const dispositivo = get(
+          db,
+          'SELECT * FROM dispositivos WHERE codigo_unico = ? AND usuario_id = ?',
+          [deviceCode, decoded.usuarioId]
+        );
+        if (!dispositivo) {
+          return next(new Error('Código de dispositivo inválido'));
+        }
+      }
+
+      next();
+    } catch (err) {
+      return next(new Error('Token inválido o expirado'));
+    }
+  });
+
+  io.on('connection', (socket) => {
+    const usuarioId = socket.usuarioId;
+    usuarioSockets[usuarioId] = socket.id;
+
+    // Unir al usuario a su sala personal
+    socket.join(`usuario_${usuarioId}`);
+
+    // Unir a salas de grupos donde es miembro
+    const misGrupos = all(
+      db,
+      'SELECT grupo_id FROM grupo_miembros WHERE usuario_id = ?',
+      [usuarioId]
+    );
+    misGrupos.forEach(g => {
+      socket.join(`grupo_${g.grupo_id}`);
+    });
+
+    console.log(`Usuario conectado: ${usuarioId} (${socket.id})`);
+
+    socket.on('disconnect', () => {
+      delete usuarioSockets[usuarioId];
+      console.log(`Usuario desconectado: ${usuarioId}`);
+    });
+  });
+
+  server.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
+    console.log(`Socket.io escuchando en puerto ${PORT}`);
     console.log(`Dominio empresa permitido: @${EMPRESA_DOMINIO}`);
     console.log(`Base de datos SQLite: ${DB_FILE}`);
     console.log(`Archivos en: ${UPLOADS_DIR}`);

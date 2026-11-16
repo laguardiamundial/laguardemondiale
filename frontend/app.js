@@ -5,6 +5,7 @@ let deviceCode = null;
 let usuarioActual = null;
 let contactoSeleccionado = null;
 let grupoSeleccionado = null;
+let socket = null;
 
 // Elementos DOM
 const pantallas = {
@@ -120,6 +121,93 @@ async function cargarApp() {
   await cargarGrupos();
   await cargarMensajes();
   mostrar('app');
+  conectarSocket();
+}
+
+function conectarSocket() {
+  if (socket) return;
+
+  socket = io(`${API_URL.replace('/api','')}`, {
+    auth: {
+      token: token,
+      deviceCode: deviceCode || ''
+    }
+  });
+
+  socket.on('connect', () => {
+    console.log('Conectado al servidor en tiempo real');
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Desconectado del servidor en tiempo real');
+  });
+
+  // Escuchar nuevos mensajes en tiempo real
+  socket.on('nuevo_mensaje', (mensaje) => {
+    // Si el mensaje es del chat actual Y es de OTRO usuario, agregarlo en tiempo real
+    // (Los mensajes propios ya aparecen al enviar)
+    const esDelChatActual = 
+      (contactoSeleccionado && mensaje.remitente_id === contactoSeleccionado && !mensaje.grupo_id && mensaje.remitente_id !== usuarioActual.id) ||
+      (grupoSeleccionado && mensaje.grupo_id === grupoSeleccionado && mensaje.remitente_id !== usuarioActual.id) ||
+      (!contactoSeleccionado && !grupoSeleccionado && !mensaje.destinatario_id && !mensaje.grupo_id && mensaje.remitente_id !== usuarioActual.id);
+
+    if (esDelChatActual) {
+      agregarMensajeAlChat(mensaje);
+    }
+  });
+}
+
+function agregarMensajeAlChat(mensaje) {
+  const contenedor = document.getElementById('tg-mensajes');
+  if (!contenedor) return;
+
+  const esMio = mensaje.remitente_id === usuarioActual.id;
+  const div = document.createElement('div');
+  div.className = `msg ${esMio ? 'mio' : 'otro'}`;
+
+  const fecha = new Date(mensaje.creado_en).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  let estadoHtml = '';
+  if (esMio) {
+    estadoHtml = `<div class="msg-estado" style="color:#999; font-size:0.7rem; margin-top:2px; text-align:right;">✓</div>`;
+  }
+
+  const categorias = {
+    general: { emoji: '💬', texto: 'General', clase: 'categoria-general' },
+    noticia: { emoji: '📰', texto: 'Noticia', clase: 'categoria-noticia' },
+    investigacion: { emoji: '🔍', texto: 'Investigación', clase: 'categoria-investigacion' },
+    urgente: { emoji: '🚨', texto: 'Urgente', clase: 'categoria-urgente' },
+    anuncio: { emoji: '📢', texto: 'Anuncio', clase: 'categoria-anuncio' }
+  };
+  const cat = categorias[mensaje.categoria || 'general'];
+  const categoriaHtml = `<span class="categoria-prefijo ${cat.clase}">${cat.emoji} ${cat.texto}</span>`;
+
+  let contenido = '';
+  if (mensaje.tipo === 'image') {
+    contenido = `<img src="${API_URL.replace('/api','')}${mensaje.file_path}" class="msg-img" alt="Imagen" />`;
+  } else if (mensaje.tipo === 'video') {
+    contenido = `<video src="${API_URL.replace('/api','')}${mensaje.file_path}" class="msg-video" controls></video>`;
+  } else if (mensaje.tipo === 'audio') {
+    contenido = `<audio src="${API_URL.replace('/api','')}${mensaje.file_path}" controls></audio>`;
+  } else if (mensaje.tipo === 'file') {
+    const nombre = mensaje.file_name || 'archivo';
+    const tamano = (mensaje.file_size / 1024).toFixed(1) + ' KB';
+    contenido = `
+      <div class="msg-archivo">
+        <div class="icono">📄</div>
+        <div class="info">
+          <div class="nombre">${escapeHtml(nombre)}</div>
+          <div class="tamano">${tamano}</div>
+        </div>
+      </div>
+    `;
+  } else {
+    contenido = `<div class="msg-texto">${escapeHtml(mensaje.texto || '')}</div>`;
+  }
+
+  div.innerHTML = categoriaHtml + contenido + estadoHtml + `<div class="msg-meta">${fecha}</div>`;
+  contenedor.appendChild(div);
+  contenedor.scrollTop = contenedor.scrollHeight;
 }
 
 // ---------- Grupos ----------
@@ -214,6 +302,11 @@ document.getElementById('btn-cerrar-sesion-app').addEventListener('click', () =>
   deviceCode = null;
   usuarioActual = null;
   contactoSeleccionado = null;
+  grupoSeleccionado = null;
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
   localStorage.clear();
   mostrar('inicio');
 });
@@ -329,6 +422,16 @@ async function cargarMensajes() {
         estadoHtml = `<div class="msg-estado" style="color:${color}; font-size:0.7rem; margin-top:2px; text-align:right;">${icono}</div>`;
       }
 
+      const categorias = {
+        general: { emoji: '💬', texto: 'General', clase: 'categoria-general' },
+        noticia: { emoji: '📰', texto: 'Noticia', clase: 'categoria-noticia' },
+        investigacion: { emoji: '🔍', texto: 'Investigación', clase: 'categoria-investigacion' },
+        urgente: { emoji: '🚨', texto: 'Urgente', clase: 'categoria-urgente' },
+        anuncio: { emoji: '📢', texto: 'Anuncio', clase: 'categoria-anuncio' }
+      };
+      const cat = categorias[m.categoria || 'general'];
+      const categoriaHtml = `<span class="categoria-prefijo ${cat.clase}">${cat.emoji} ${cat.texto}</span>`;
+
       let contenido = '';
       if (m.tipo === 'image') {
         contenido = `<img src="${API_URL.replace('/api','')}${m.file_path}" class="msg-img" alt="Imagen" />`;
@@ -352,7 +455,7 @@ async function cargarMensajes() {
         contenido = `<div class="msg-texto">${escapeHtml(m.texto || '')}</div>`;
       }
 
-      div.innerHTML = contenido + estadoHtml + `<div class="msg-meta">${fecha}</div>`;
+      div.innerHTML = categoriaHtml + contenido + estadoHtml + `<div class="msg-meta">${fecha}</div>`;
       contenedor.appendChild(div);
     });
 
@@ -376,7 +479,8 @@ document.getElementById('form-enviar').addEventListener('submit', async (e) => {
       body: JSON.stringify({ 
         texto, 
         destinatarioId: contactoSeleccionado, 
-        grupoId: grupoSeleccionado 
+        grupoId: grupoSeleccionado,
+        categoria: document.getElementById('select-categoria').value
       })
     });
     if (!res.ok) {
@@ -412,6 +516,7 @@ async function enviarArchivo(archivo) {
   formData.append('archivo', archivo);
   if (contactoSeleccionado) formData.append('destinatarioId', contactoSeleccionado);
   if (grupoSeleccionado) formData.append('grupoId', grupoSeleccionado);
+  formData.append('categoria', document.getElementById('select-categoria').value);
 
   try {
     const res = await fetch(`${API_URL}/mensajes`, {

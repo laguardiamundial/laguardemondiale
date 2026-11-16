@@ -150,7 +150,13 @@
 
               <form id="form-enviar" class="tg-enviar">
                 <button type="button" class="btn-adjunto" id="btn-adjunto">📎</button>
-                <input type="file" id="input-archivo" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.zip,.mp3,.wav" style="display:none" multiple />
+                <select id="select-categoria" class="select-categoria">
+                  <option value="general">💬 General</option>
+                  <option value="noticia">📰 Noticia</option>
+                  <option value="investigacion">🔍 Investigación</option>
+                  <option value="urgente">🚨 Urgente</option>
+                  <option value="anuncio">📢 Anuncio</option>
+                </select>
                 <input type="text" id="input-mensaje" placeholder="Escribir un mensaje..." />
                 <button type="submit" class="btn-enviar">➤</button>
               </form>
@@ -162,6 +168,7 @@
 
   </div>
 
-  <script src="app.js?v=2"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>

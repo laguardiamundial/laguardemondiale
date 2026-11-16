@@ -483,7 +483,45 @@ h2 {
 .btn-enviar:hover { background: var(--tg-azul-oscuro); }
 .btn-enviar:disabled { opacity: 0.6; cursor: not-allowed; }
 
-/* Overlay sidebar móvil */
+/* Selector de categoría */
+.select-categoria {
+  padding: 6px 10px;
+  border: 1px solid var(--tg-borde);
+  border-radius: 20px;
+  font-size: 0.85rem;
+  background: #f7f7f7;
+  outline: none;
+  cursor: pointer;
+  margin-right: 6px;
+}
+.select-categoria:focus {
+  border-color: var(--tg-azul);
+}
+
+/* Prefijo de categoría en mensajes */
+.categoria-prefijo {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-bottom: 4px;
+  margin-right: 8px;
+}
+
+/* Colores por categoría */
+.categoria-general { background: #e1e5e9; color: #5a6268; }
+.categoria-noticia { background: #e3f2fd; color: #1565c0; }
+.categoria-investigacion { background: #e8f5e9; color: #2e7d32; }
+.categoria-urgente { background: #ffebee; color: #c62828; border: 1px solid #c62828; }
+.categoria-anuncio { background: #fff3e0; color: #ef6c00; }
+
+/* Burbuja de mensaje con categoría */
+.msg-con-categoria {
+  position: relative;
+}
 .overlay-sidebar {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0,0,0,0.4); z-index: 200; display: none;
