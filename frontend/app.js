@@ -1,9 +1,9 @@
-const API_URL = 'http://localhost:3000/api'; // Cambia si usas otro host/puerto
+const API_URL = 'http://localhost:3001/api';
 
 let token = null;
 let deviceCode = null;
 let usuarioActual = null;
-let contactoSeleccionado = null; // id del contacto o null (chat general)
+let contactoSeleccionado = null;
 
 // Elementos DOM
 const pantallas = {
@@ -171,7 +171,7 @@ function headersAuth() {
   return h;
 }
 
-// ---------- Contactos ----------
+// Contactos
 async function cargarContactos() {
   try {
     const res = await fetch(`${API_URL}/contactos`, { headers: headersAuth() });
@@ -180,7 +180,6 @@ async function cargarContactos() {
     const contenedor = document.getElementById('lista-contactos');
     contenedor.innerHTML = '';
 
-    // Chat general
     const general = document.createElement('div');
     general.className = 'conv-item' + (contactoSeleccionado === null ? ' activo' : '');
     general.innerHTML = `
@@ -226,7 +225,6 @@ function seleccionarContacto(id, elemento) {
     estadoEl.textContent = 'Conversación de empresa';
     avatarEl.textContent = 'G';
   } else {
-    // Buscar nombre del contacto en el DOM
     const info = elemento.querySelector('.conv-nombre');
     nombreEl.textContent = info ? info.textContent : 'Contacto';
     estadoEl.textContent = 'En línea';
@@ -237,12 +235,11 @@ function seleccionarContacto(id, elemento) {
   document.getElementById('tg-activo').classList.remove('oculto');
   cargarMensajes();
 
-  // Cerrar sidebar en móviles
   document.getElementById('tg-sidebar').classList.add('oculto');
   overlay.style.display = 'none';
 }
 
-// ---------- Mensajes ----------
+// Mensajes
 async function cargarMensajes() {
   try {
     const res = await fetch(`${API_URL}/mensajes`, { headers: headersAuth() });
@@ -263,7 +260,7 @@ async function cargarMensajes() {
       if (m.tipo === 'image') {
         contenido = `<img src="${API_URL.replace('/api','')}${m.file_path}" class="msg-img" alt="Imagen" />`;
       } else if (m.tipo === 'video') {
-        contenido = `<video src="${API_URL.replace('/api','')}${m.file_path}" class="msg-video" controls poster=""></video>`;
+        contenido = `<video src="${API_URL.replace('/api','')}${m.file_path}" class="msg-video" controls></video>`;
       } else if (m.tipo === 'audio') {
         contenido = `<audio src="${API_URL.replace('/api','')}${m.file_path}" controls></audio>`;
       } else if (m.tipo === 'file') {
@@ -292,7 +289,7 @@ async function cargarMensajes() {
   }
 }
 
-// ---------- Enviar mensaje ----------
+// Enviar mensaje
 document.getElementById('form-enviar').addEventListener('submit', async (e) => {
   e.preventDefault();
   const input = document.getElementById('input-mensaje');
@@ -314,10 +311,10 @@ document.getElementById('form-enviar').addEventListener('submit', async (e) => {
     await cargarMensajes();
   } catch (err) {
     alert('Error de conexión');
-  });
-}
+  }
+});
 
-// ---------- Adjuntar archivo ----------
+// Adjuntar archivo
 const btnAdjunto = document.getElementById('btn-adjunto');
 const inputArchivo = document.getElementById('input-archivo');
 
@@ -355,7 +352,7 @@ async function enviarArchivo(archivo) {
   }
 }
 
-// ---------- Sidebar móvil ----------
+// Sidebar móvil
 document.getElementById('btn-abrir-sidebar').addEventListener('click', () => {
   const sidebar = document.getElementById('tg-sidebar');
   sidebar.classList.remove('oculto');
@@ -366,14 +363,14 @@ overlay.addEventListener('click', () => {
   overlay.style.display = 'none';
 });
 
-// ---------- Utils ----------
+// Utils
 function escapeHtml(texto) {
   const div = document.createElement('div');
   div.textContent = texto;
   return div.innerHTML;
 }
 
-// ---------- Inicialización ----------
+// Inicialización
 document.addEventListener('DOMContentLoaded', () => {
   const tok = localStorage.getItem('token');
   const user = localStorage.getItem('usuario');

@@ -109,7 +109,7 @@ const upload = multer({
     if (extOk) cb(null, true);
     else cb(new Error('Tipo de archivo no permitido'), false);
   }
-);
+});
 
 // ---------- Rutas ----------
 
