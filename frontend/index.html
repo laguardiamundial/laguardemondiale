@@ -3,15 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0078d7" />
   <title>Mensajería Empresa</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
 </head>
 <body>
-  <div id="app">
+  <div id="app" role="application">
 
-    <!-- Pantalla de bienvenida -->
-    <section id="pantalla-inicio" class="pantalla activa">
-      <div class="tarjeta-inicio">
+    <!-- Pantalla de bienvenida (diálogo moderno) -->
+    <dialog id="pantalla-inicio" class="pantalla pantalla-modal" data-tema="claro">
+      <form method="dialog" class="tarjeta-inicio">
         <div class="logo">M<sup>E</sup></div>
         <h1>Mensajería <span class="acento">Empresa</span></h1>
         <p>App privada de mensajería para la compañía.<br>Acceso solo con credenciales corporativas y código de dispositivo.</p>
@@ -19,124 +21,125 @@
           <button class="btn btn-principal btn-ancho" id="btn-ingresar">Ingresar</button>
           <button class="btn btn-secundario btn-ancho" id="btn-registrar">Crear cuenta</button>
         </div>
-      </div>
-    </section>
+      </form>
+    </dialog>
 
-    <!-- Registro -->
-    <section id="pantalla-registro" class="pantalla oculto">
-      <div class="tarjeta">
-        <button class="btn-volver" id="volver-inicio-registro">← Volver</button>
+    <!-- Registro (diálogo) -->
+    <dialog id="pantalla-registro" class="pantalla pantalla-modal">
+      <form id="form-registro" class="tarjeta">
+        <button type="button" class="btn-volver" id="volver-inicio-registro" aria-label="Volver al inicio">← Volver</button>
         <h2>Crear cuenta</h2>
         <p class="subtitulo">Solo correos @tuempresa.com</p>
-        <form id="form-registro">
-          <div class="campo">
-            <label>Nombre completo</label>
-            <input type="text" id="reg-nombre" placeholder="Juan Pérez" required />
-          </div>
-          <div class="campo">
-            <label>Correo corporativo</label>
-            <input type="email" id="reg-email" placeholder="juan@tuempresa.com" required />
-          </div>
-          <div class="campo">
-            <label>Contraseña</label>
-            <input type="password" id="reg-password" placeholder="••••••••" required />
-          </div>
-          <button type="submit" class="btn btn-principal btn-ancho">Crear cuenta</button>
-        </form>
+        <div class="campo">
+          <label for="reg-nombre">Nombre completo</label>
+          <input type="text" id="reg-nombre" name="nombre" placeholder="Juan Pérez" required autocomplete="name" />
+        </div>
+        <div class="campo">
+          <label for="reg-email">Correo corporativo</label>
+          <input type="email" id="reg-email" name="email" placeholder="juan@tuempresa.com" required autocomplete="email" />
+        </div>
+        <div class="campo">
+          <label for="reg-password">Contraseña</label>
+          <input type="password" id="reg-password" name="password" placeholder="••••••••" required autocomplete="new-password" />
+        </div>
+        <button type="submit" class="btn btn-principal btn-ancho">Crear cuenta</button>
         <button type="button" class="btn btn-texto btn-ancho" id="volver-login-registro">Ya tengo cuenta</button>
-        <div id="msg-registro" class="mensaje error"></div>
-      </div>
-    </section>
+        <div id="msg-registro" class="mensaje error" role="alert" aria-live="polite"></div>
+      </form>
+    </dialog>
 
-    <!-- Login -->
-    <section id="pantalla-login" class="pantalla oculto">
-      <div class="tarjeta">
-        <button class="btn-volver" id="volver-inicio-login">← Volver</button>
+    <!-- Login (diálogo) -->
+    <dialog id="pantalla-login" class="pantalla pantalla-modal">
+      <form id="form-login" class="tarjeta">
+        <button type="button" class="btn-volver" id="volver-inicio-login" aria-label="Volver al inicio">← Volver</button>
         <h2>Iniciar sesión</h2>
-        <form id="form-login">
-          <div class="campo">
-            <label>Correo corporativo</label>
-            <input type="email" id="log-email" placeholder="juan@tuempresa.com" required />
-          </div>
-          <div class="campo">
-            <label>Contraseña</label>
-            <input type="password" id="log-password" placeholder="••••••••" required />
-          </div>
-          <button type="submit" class="btn btn-principal btn-ancho">Ingresar</button>
-        </form>
+        <div class="campo">
+          <label for="log-email">Correo corporativo</label>
+          <input type="email" id="log-email" name="email" placeholder="juan@tuempresa.com" required autocomplete="email" />
+        </div>
+        <div class="campo">
+          <label for="log-password">Contraseña</label>
+          <input type="password" id="log-password" name="password" placeholder="••••••••" required autocomplete="current-password" />
+        </div>
+        <button type="submit" class="btn btn-principal btn-ancho">Ingresar</button>
         <button type="button" class="btn btn-texto btn-ancho" id="volver-registro-login">Crear cuenta</button>
-        <div id="msg-login" class="mensaje error"></div>
-      </div>
-    </section>
+        <div id="msg-login" class="mensaje error" role="alert" aria-live="polite"></div>
+      </form>
+    </dialog>
 
-    <!-- Código único de dispositivo -->
-    <section id="pantalla-codigo" class="pantalla oculto">
-      <div class="tarjeta">
-        <button class="btn-volver" id="volver-codigo">← Volver</button>
+    <!-- Código único de dispositivo (diálogo) -->
+    <dialog id="pantalla-codigo" class="pantalla pantalla-modal">
+      <form id="form-codigo" class="tarjeta">
+        <button type="button" class="btn-volver" id="volver-codigo" aria-label="Volver">← Volver</button>
         <h2>Registrar este dispositivo</h2>
         <p>Esta aplicación generó un código único vinculado a este dispositivo. Guárdalo, solo funciona con esta app.</p>
         <div class="codigo-box">
           <span id="codigo-unico" class="codigo">---- ----</span>
-          <button id="btn-copiar-codigo" class="btn btn-secundario btn-icono">Copiar</button>
+          <button type="button" class="btn btn-secundario btn-icono" id="btn-copiar-codigo" aria-label="Copiar código al portapapeles">Copiar</button>
         </div>
         <div class="campo">
-          <label>Nombre del dispositivo</label>
-          <input type="text" id="nombre-dispositivo" placeholder="Mi PC / Mi teléfono" />
+          <label for="nombre-dispositivo">Nombre del dispositivo</label>
+          <input type="text" id="nombre-dispositivo" name="nombreDispositivo" placeholder="Mi PC / Mi teléfono" />
         </div>
-        <button class="btn btn-principal btn-ancho" id="btn-guardar-codigo">He guardado el código</button>
-        <div id="msg-codigo" class="mensaje error"></div>
-      </div>
-    </section>
+        <button type="submit" class="btn btn-principal btn-ancho" id="btn-guardar-codigo">He guardado el código</button>
+        <div id="msg-codigo" class="mensaje error" role="alert" aria-live="polite"></div>
+      </form>
+    </dialog>
 
     <!-- App principal estilo Telegram -->
-    <section id="pantalla-app" class="pantalla oculto">
+    <div id="pantalla-app" class="pantalla pantalla-app" hidden>
       <div class="telegram-wrapper">
         <!-- Header superior -->
         <header class="tg-header">
-          <div class="tg-menu" id="btn-abrir-sidebar">☰</div>
+          <button class="btn-icono tg-menu" id="btn-abrir-sidebar" aria-label="Abrir menú de contactos">☰</button>
           <div class="tg-header-center">
-            <div class="tg-avatar" id="header-avatar">U</div>
+            <div class="tg-avatar" id="header-avatar" aria-label="Avatar del usuario">U</div>
             <div class="tg-header-info">
               <div class="tg-nombre" id="header-nombre">Cargando...</div>
               <div class="tg-estado" id="header-estado">En línea</div>
             </div>
           </div>
           <div class="tg-header-actions">
-            <button class="btn-icono" id="btn-buscar-global">🔍</button>
-            <button class="btn-icono" id="btn-perfil">👤</button>
-            <button class="btn-tema" id="btn-tema" title="Cambiar tema">🌙</button>
-            <button class="btn-icono" id="btn-cerrar-sesion-app">Salir</button>
+            <button class="btn-icono" id="btn-buscar-global" aria-label="Buscar">🔍</button>
+            <button class="btn-icono" id="btn-perfil" aria-label="Perfil">👤</button>
+            <button class="btn-tema" id="btn-tema" title="Cambiar tema" aria-label="Cambiar tema claro/oscuro">🌙</button>
+            <button class="btn-icono" id="btn-cerrar-sesion-app" aria-label="Cerrar sesión">Salir</button>
           </div>
         </header>
 
         <div class="tg-body">
           <!-- Sidebar de contactos -->
-          <aside class="tg-sidebar" id="tg-sidebar">
+          <aside class="tg-sidebar" id="tg-sidebar" aria-label="Contactos y grupos">
             <div class="tg-sidebar-header">
-              <input type="text" id="buscar-contactos" placeholder="Buscar" />
-              <button class="btn-icono" id="btn-nuevo-chat">✏️</button>
-              <button class="btn-icono" id="btn-nuevo-grupo" title="Nuevo grupo">👥</button>
+              <input type="search" id="buscar-contactos" placeholder="Buscar contactos..." aria-label="Buscar contactos" />
+              <button class="btn-icono" id="btn-nuevo-chat" aria-label="Nuevo chat">✏️</button>
+              <button class="btn-icono" id="btn-nuevo-grupo" title="Nuevo grupo" aria-label="Nuevo grupo">👥</button>
             </div>
-            <div class="tg-contactos" id="lista-contactos">
-              <!-- Se inyectan por JS -->
+            <div class="tg-seccion">
+              <h3 class="tg-seccion-titulo">Contactos</h3>
+              <div class="tg-contactos" id="lista-contactos" role="listbox" aria-label="Lista de contactos">
+                <!-- Se inyectan por JS -->
+              </div>
             </div>
-            <div style="padding: 8px 14px; border-top: 1px solid var(--tg-borde); font-size: 0.8rem; color: var(--tg-texto-suave); text-transform: uppercase; letter-spacing: 0.5px;">Grupos</div>
-            <div class="tg-contactos" id="lista-grupos">
-              <!-- Se inyectan por JS -->
+            <div class="tg-seccion">
+              <h3 class="tg-seccion-titulo">Grupos</h3>
+              <div class="tg-contactos" id="lista-grupos" role="listbox" aria-label="Lista de grupos">
+                <!-- Se inyectan por JS -->
+              </div>
             </div>
           </aside>
 
           <!-- Chat principal -->
-          <main class="tg-chat" id="tg-chat">
+          <main class="tg-chat" id="tg-chat" aria-label="Chat">
             <!-- Pantalla vacía -->
             <div class="tg-vacio" id="tg-vacio">
               <div class="tg-vacio-icon">💬</div>
               <h3>Selecciona una conversación</h3>
-              <p>Escoge un contacto para comenzar a chatear.</p>
+              <p>Escoge un contacto o grupo para comenzar a chatear.</p>
             </div>
 
             <!-- Área de chat activo -->
-            <div class="tg-activo oculto" id="tg-activo">
+            <div class="tg-activo" id="tg-activo" hidden>
               <header class="tg-chat-header">
                 <div class="tg-chat-avatar" id="chat-activo-avatar">C</div>
                 <div class="tg-chat-info">
@@ -145,31 +148,32 @@
                 </div>
               </header>
 
-              <div class="tg-mensajes" id="tg-mensajes">
+              <div class="tg-mensajes" id="tg-mensajes" role="log" aria-label="Mensajes">
                 <!-- Mensajes inyectados por JS -->
               </div>
 
-              <form id="form-enviar" class="tg-enviar">
-                <button type="button" class="btn-adjunto" id="btn-adjunto">📎</button>
-                <select id="select-categoria" class="select-categoria">
+              <form id="form-enviar" class="tg-enviar" novalidate>
+                <button type="button" class="btn-adjunto" id="btn-adjunto" aria-label="Adjuntar archivo">📎</button>
+                <input type="file" id="input-archivo" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.zip,.mp3,.wav" style="display:none" multiple />
+                <select id="select-categoria" class="select-categoria" aria-label="Categoría del mensaje">
                   <option value="general">💬 General</option>
                   <option value="noticia">📰 Noticia</option>
                   <option value="investigacion">🔍 Investigación</option>
                   <option value="urgente">🚨 Urgente</option>
                   <option value="anuncio">📢 Anuncio</option>
                 </select>
-                <input type="text" id="input-mensaje" placeholder="Escribir un mensaje..." />
+                <input type="text" id="input-mensaje" placeholder="Escribir un mensaje..." required />
                 <button type="submit" class="btn-enviar">➤</button>
               </form>
             </div>
           </main>
         </div>
       </div>
-    </section>
+    </div>
 
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
