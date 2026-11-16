@@ -334,13 +334,17 @@ async function cargarContactos() {
     general.onclick = () => seleccionarContacto(null, general);
     contenedor.appendChild(general);
 
+    const apiBase = API_URL.replace('/api','');
     data.contactos.forEach(c => {
       const div = document.createElement('button');
       div.type = 'button';
       div.className = 'conv-item' + (contactoSeleccionado === c.id ? ' activo' : '');
       const inicial = (c.nombre || c.email).charAt(0).toUpperCase();
+      const avatarHtml = c.avatar
+        ? `<img src="${apiBase}${c.avatar}" alt="Avatar" class="avatar-img" />`
+        : inicial;
       div.innerHTML = `
-        <div class="conv-avatar">${inicial}</div>
+        <div class="conv-avatar">${avatarHtml}</div>
         <div class="conv-info">
           <div class="conv-nombre">${escapeHtml(c.nombre || c.email)}</div>
           <div class="conv-preview">Contacto corporativo</div>
@@ -383,6 +387,42 @@ function seleccionarContacto(id, elemento) {
   const overlay = document.getElementById('overlay-sidebar');
   if (overlay) overlay.style.display = 'none';
 }
+
+// ---------- Avatar / Foto de perfil ----------
+const inputAvatar = document.getElementById('input-avatar');
+const headerAvatar = document.getElementById('header-avatar');
+
+// Clic en el avatar del header abre el selector de archivo
+headerAvatar.addEventListener('click', () => inputAvatar.click());
+
+inputAvatar.addEventListener('change', async () => {
+  const archivo = inputAvatar.files[0];
+  if (!archivo) return;
+
+  try {
+    const formData = new FormData();
+    formData.append('avatar', archivo);
+
+    const res = await fetch(`${API_URL}/usuario/avatar`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'X-Device-Code': deviceCode || '' },
+      body: formData
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || 'Error al subir foto de perfil');
+      return;
+    }
+    const dataJson = await res.json();
+    const avatarUrl = `${API_URL.replace('/api','')}${dataJson.avatar}`;
+    headerAvatar.innerHTML = `<img src="${avatarUrl}" alt="Avatar" class="avatar-img" />`;
+    localStorage.setItem('usuarioAvatar', avatarUrl);
+    inputAvatar.value = '';
+    mostrarMensaje('msg-codigo', 'Foto de perfil actualizada', 'exito');
+  } catch (err) {
+    alert('Error de conexión al subir foto');
+  }
+});
 
 // ---------- Grupos ----------
 async function cargarGrupos() {
@@ -532,7 +572,24 @@ function agregarMensajeAlChat(mensaje) {
     contenido = `<div class="msg-texto">${escapeHtml(mensaje.texto || '')}</div>`;
   }
 
-  div.innerHTML = categoriaHtml + contenido + estadoHtml + `<div class="msg-meta">${fecha}</div>`;
+  const apiBase = API_URL.replace('/api','');
+  const avatarUrl = mensaje.remitente_avatar ? `${apiBase}${mensaje.remitente_avatar}` : null;
+  const avatarHtml = avatarUrl
+    ? `<img src="${avatarUrl}" alt="Avatar" class="msg-avatar-img" />`
+    : `<div class="msg-avatar-letter">${(mensaje.remitente_nombre || 'U').charAt(0).toUpperCase()}</div>`;
+
+  // Para mensajes de otros, mostrar avatar a la izquierda; para mí, a la derecha
+  const avatarPosition = esMio ? 'msg-avatar-mio' : 'msg-avatar-otro';
+
+  div.innerHTML = `
+    ${categoriaHtml}
+    <div class="msg-contenido">
+      ${!esMio ? `<div class="msg-avatar ${avatarPosition}">${avatarHtml}</div>` : ''}
+      <div class="msg-body">${contenido}${estadoHtml}</div>
+      ${esMio ? `<div class="msg-avatar ${avatarPosition}">${avatarHtml}</div>` : ''}
+    </div>
+    <div class="msg-meta">${fecha}</div>
+  `;
   contenedor.appendChild(div);
   contenedor.scrollTop = contenedor.scrollHeight;
 }
@@ -700,7 +757,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function cargarApp() {
   document.getElementById('header-nombre').textContent = usuarioActual.nombre || usuarioActual.email;
-  document.getElementById('header-avatar').textContent = (usuarioActual.nombre || usuarioActual.email).charAt(0).toUpperCase();
+
+  // Obtener perfil para tener el avatar actualizado
+  try {
+    const res = await fetch(`${API_URL}/perfil`, { headers: headersAuth() });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.usuario && data.usuario.avatar) {
+        const avatarUrl = `${API_URL.replace('/api','')}${data.usuario.avatar}`;
+        document.getElementById('header-avatar').innerHTML = `<img src="${avatarUrl}" alt="Avatar" class="avatar-img" />`;
+        localStorage.setItem('usuarioAvatar', avatarUrl);
+      } else {
+        const inicial = (usuarioActual.nombre || usuarioActual.email).charAt(0).toUpperCase();
+        document.getElementById('header-avatar').textContent = inicial;
+        const avatarGuardado = localStorage.getItem('usuarioAvatar');
+        if (avatarGuardado) {
+          document.getElementById('header-avatar').innerHTML = `<img src="${avatarGuardado}" alt="Avatar" class="avatar-img" />`;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error cargando perfil:', err);
+    const inicial = (usuarioActual.nombre || usuarioActual.email).charAt(0).toUpperCase();
+    document.getElementById('header-avatar').textContent = inicial;
+  }
+
   await cargarContactos();
   await cargarGrupos();
   await cargarMensajes();

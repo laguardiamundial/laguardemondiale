@@ -589,6 +589,29 @@ app.get('/api/contactos', autenticar, (req, res) => {
   res.json({ contactos });
 });
 
+// Subir foto de perfil (avatar)
+app.post('/api/usuario/avatar', autenticar, upload.single('avatar'), (req, res) => {
+  const archivo = req.file;
+  const usuarioId = req.usuario.usuarioId;
+
+  if (!archivo) {
+    return res.status(400).json({ error: 'No se seleccionó ninguna imagen' });
+  }
+
+  // Validar que sea imagen
+  const ext = path.extname(archivo.originalname).toLowerCase();
+  if (!['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
+    return res.status(400).json({ error: 'Solo se permiten imágenes (jpg, png, gif, webp)' });
+  }
+
+  const avatarUrl = `/uploads/${archivo.filename}`;
+
+  run(db, 'UPDATE usuarios SET avatar = ? WHERE id = ?', [avatarUrl, usuarioId]);
+  saveDatabase(db);
+
+  res.json({ mensaje: 'Avatar actualizado', avatar: avatarUrl });
+});
+
 // Perfil
 app.get('/api/perfil', autenticar, (req, res) => {
   const usuario = get(db, 'SELECT id, email, nombre, avatar, creado_en FROM usuarios WHERE id = ?', [req.usuario.usuarioId]);

@@ -711,6 +711,67 @@ h2 {
   text-align: left;
 }
 
+/* Avatar del header */
+#header-avatar.avatar-img, .tg-avatar.avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Avatar en mensajes */
+.msg-contenido {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 70%;
+}
+
+.msg.mio .msg-contenido {
+  flex-direction: row-reverse;
+  align-self: flex-end;
+}
+
+.msg.otro .msg-contenido {
+  align-self: flex-start;
+}
+
+.msg-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: oklch(0.8 0 0);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--tg-texto-suave);
+  border: 2px solid var(--tg-blanco);
+}
+
+.msg-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.msg-avatar-letter {
+  color: var(--tg-texto-suave);
+}
+
+.msg-body {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Ajuste para burbujas con avatar: max-width relativo al contenedor */
+.msg {
+  max-width: calc(70% - 40px);
+}
+
 /* Prefijo de categoría */
 .categoria-prefijo {
   display: inline-block;
