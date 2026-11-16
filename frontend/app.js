@@ -4,6 +4,7 @@ let token = null;
 let deviceCode = null;
 let usuarioActual = null;
 let contactoSeleccionado = null;
+let grupoSeleccionado = null;
 
 // Elementos DOM
 const pantallas = {
@@ -116,8 +117,61 @@ async function cargarApp() {
   document.getElementById('header-nombre').textContent = usuarioActual.nombre || usuarioActual.email;
   document.getElementById('header-avatar').textContent = (usuarioActual.nombre || usuarioActual.email).charAt(0).toUpperCase();
   await cargarContactos();
+  await cargarGrupos();
   await cargarMensajes();
   mostrar('app');
+}
+
+// ---------- Grupos ----------
+async function cargarGrupos() {
+  try {
+    const res = await fetch(`${API_URL}/grupos`, { headers: headersAuth() });
+    if (!res.ok) return;
+    const data = await res.json();
+    const contenedor = document.getElementById('lista-grupos');
+    if (!contenedor) return;
+    contenedor.innerHTML = '';
+
+    data.grupos.forEach(g => {
+      const div = document.createElement('div');
+      div.className = 'conv-item' + (grupoSeleccionado === g.id ? ' activo' : '');
+      div.innerHTML = `
+        <div class="conv-avatar">👥</div>
+        <div class="conv-info">
+          <div class="conv-nombre">${escapeHtml(g.nombre)}</div>
+          <div class="conv-preview">${g.totalMiembros} miembros</div>
+        </div>
+      `;
+      div.onclick = () => seleccionarGrupo(g.id, div);
+      contenedor.appendChild(div);
+    });
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function seleccionarGrupo(id, elemento) {
+  grupoSeleccionado = id;
+  contactoSeleccionado = null;
+  document.querySelectorAll('.conv-item').forEach(el => el.classList.remove('activo'));
+  if (elemento) elemento.classList.add('activo');
+
+  const nombreEl = document.getElementById('chat-activo-nombre');
+  const estadoEl = document.getElementById('chat-activo-estado');
+  const avatarEl = document.getElementById('chat-activo-avatar');
+
+  // Buscar nombre del grupo en el elemento
+  const info = elemento.querySelector('.conv-nombre');
+  nombreEl.textContent = info ? info.textContent : 'Grupo';
+  estadoEl.textContent = 'Chat grupal';
+  avatarEl.textContent = '👥';
+
+  document.getElementById('tg-vacio').classList.add('oculto');
+  document.getElementById('tg-activo').classList.remove('oculto');
+  cargarMensajes();
+
+  document.getElementById('tg-sidebar').classList.add('oculto');
+  overlay.style.display = 'none';
 }
 
 // Código único de dispositivo
@@ -213,6 +267,7 @@ async function cargarContactos() {
 
 function seleccionarContacto(id, elemento) {
   contactoSeleccionado = id;
+  grupoSeleccionado = null;
   document.querySelectorAll('.conv-item').forEach(el => el.classList.remove('activo'));
   if (elemento) elemento.classList.add('activo');
 
@@ -235,6 +290,15 @@ function seleccionarContacto(id, elemento) {
   document.getElementById('tg-activo').classList.remove('oculto');
   cargarMensajes();
 
+  // Marcar mensajes del contacto como leídos
+  if (id !== null) {
+    fetch(`${API_URL}/mensajes/marcar-leidos`, {
+      method: 'POST',
+      headers: headersAuth(),
+      body: JSON.stringify({ remitente_id: id })
+    }).catch(() => {});
+  }
+
   document.getElementById('tg-sidebar').classList.add('oculto');
   overlay.style.display = 'none';
 }
@@ -255,6 +319,15 @@ async function cargarMensajes() {
       div.className = `msg ${esMio ? 'mio' : 'otro'}`;
 
       const fecha = new Date(m.creado_en).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      let estadoHtml = '';
+      if (esMio) {
+        let icono = '✓';
+        let color = '#999';
+        if (m.estado === 'entregado') { icono = '✓✓'; color = '#999'; }
+        if (m.estado === 'leido') { icono = '✓✓'; color = '#0078d7'; }
+        estadoHtml = `<div class="msg-estado" style="color:${color}; font-size:0.7rem; margin-top:2px; text-align:right;">${icono}</div>`;
+      }
 
       let contenido = '';
       if (m.tipo === 'image') {
@@ -279,7 +352,7 @@ async function cargarMensajes() {
         contenido = `<div class="msg-texto">${escapeHtml(m.texto || '')}</div>`;
       }
 
-      div.innerHTML = contenido + `<div class="msg-meta">${fecha}</div>`;
+      div.innerHTML = contenido + estadoHtml + `<div class="msg-meta">${fecha}</div>`;
       contenedor.appendChild(div);
     });
 
@@ -300,7 +373,11 @@ document.getElementById('form-enviar').addEventListener('submit', async (e) => {
     const res = await fetch(`${API_URL}/mensajes`, {
       method: 'POST',
       headers: headersAuth(),
-      body: JSON.stringify({ texto, destinatarioId: contactoSeleccionado })
+      body: JSON.stringify({ 
+        texto, 
+        destinatarioId: contactoSeleccionado, 
+        grupoId: grupoSeleccionado 
+      })
     });
     if (!res.ok) {
       const data = await res.json();
@@ -334,6 +411,7 @@ async function enviarArchivo(archivo) {
   const formData = new FormData();
   formData.append('archivo', archivo);
   if (contactoSeleccionado) formData.append('destinatarioId', contactoSeleccionado);
+  if (grupoSeleccionado) formData.append('grupoId', grupoSeleccionado);
 
   try {
     const res = await fetch(`${API_URL}/mensajes`, {
@@ -361,6 +439,32 @@ document.getElementById('btn-abrir-sidebar').addEventListener('click', () => {
 overlay.addEventListener('click', () => {
   document.getElementById('tg-sidebar').classList.add('oculto');
   overlay.style.display = 'none';
+});
+
+// Crear grupo
+document.getElementById('btn-nuevo-grupo').addEventListener('click', async () => {
+  const nombre = prompt('Nombre del grupo:');
+  if (!nombre || !nombre.trim()) return;
+
+  try {
+    const res = await fetch(`${API_URL}/grupos`, {
+      method: 'POST',
+      headers: headersAuth(),
+      body: JSON.stringify({ nombre: nombre.trim(), miembros: [] })
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || 'Error al crear grupo');
+      return;
+    }
+    const dataJson = await res.json();
+    await cargarGrupos();
+    // Seleccionar el grupo recién creado
+    const div = document.querySelector(`#lista-grupos .conv-item:last-child`);
+    if (div) seleccionarGrupo(dataJson.grupo.id, div);
+  } catch (err) {
+    alert('Error de conexión');
+  }
 });
 
 // Utils

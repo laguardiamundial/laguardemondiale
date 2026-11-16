@@ -408,6 +408,13 @@ h2 {
 .msg.mio .msg-meta { text-align: right; }
 .msg.otro .msg-meta { text-align: left; }
 
+.msg-estado {
+  font-size: 0.65rem;
+  margin-top: 3px;
+  text-align: right;
+  font-weight: 600;
+}
+
 /* Multimedia */
 .msg-img {
   width: 160px;

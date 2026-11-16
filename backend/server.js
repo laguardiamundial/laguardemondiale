@@ -5,6 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const SQL = require('sql.js');
 
 const app = express();
 const PORT = 3001;
@@ -15,35 +16,119 @@ const EMPRESA_DOMINIO = 'tuempresa.com'; // <-- Cambia por el dominio de tu empr
 const ROOT = __dirname;
 const DATA_DIR = path.join(ROOT, 'data');
 const UPLOADS_DIR = path.join(ROOT, 'uploads');
+const DB_FILE = path.join(DATA_DIR, 'database.sqlite');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-
-// Archivos JSON (base de datos simple sin dependencias nativas)
-const ARCHIVOS = {
-  usuarios: path.join(DATA_DIR, 'usuarios.json'),
-  dispositivos: path.join(DATA_DIR, 'dispositivos.json'),
-  mensajes: path.join(DATA_DIR, 'mensajes.json')
-};
-
-function leerArchivo(archivo, defecto = []) {
-  try {
-    if (!fs.existsSync(archivo)) return defecto;
-    const contenido = fs.readFileSync(archivo, 'utf8');
-    if (!contenido.trim()) return defecto;
-    return JSON.parse(contenido);
-  } catch (e) {
-    return defecto;
-  }
-}
-
-function escribirArchivo(archivo, datos) {
-  fs.writeFileSync(archivo, JSON.stringify(datos, null, 2));
-}
 
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static(UPLOADS_DIR)); // servir archivos subidos
+app.use('/uploads', express.static(UPLOADS_DIR));
+
+// ---------- Base de datos SQLite (sql.js) ----------
+let db;
+
+async function initDatabase() {
+  const SQLPromise = SQL();
+  const SQLLibrary = await SQLPromise;
+
+  let existingDb = null;
+  if (fs.existsSync(DB_FILE)) {
+    const filebuffer = fs.readFileSync(DB_FILE);
+    existingDb = new SQLLibrary.Database(filebuffer);
+  } else {
+    existingDb = new SQLLibrary.Database();
+  }
+
+  // Crear tablas si no existen
+  existingDb.exec(`
+    CREATE TABLE IF NOT EXISTS usuarios (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      nombre TEXT,
+      avatar TEXT,
+      creado_en DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS dispositivos (
+      id TEXT PRIMARY KEY,
+      usuario_id TEXT NOT NULL,
+      codigo_unico TEXT NOT NULL,
+      nombre_dispositivo TEXT,
+      creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS mensajes (
+      id TEXT PRIMARY KEY,
+      remitente_id TEXT NOT NULL,
+      destinatario_id TEXT,
+      grupo_id TEXT,
+      tipo TEXT NOT NULL DEFAULT 'text',
+      texto TEXT,
+      file_path TEXT,
+      file_name TEXT,
+      file_size INTEGER,
+      mime_type TEXT,
+      leido INTEGER DEFAULT 0,
+      estado TEXT DEFAULT 'enviado',
+      leido_en DATETIME,
+      creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (remitente_id) REFERENCES usuarios(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS grupos (
+      id TEXT PRIMARY KEY,
+      nombre TEXT NOT NULL,
+      creado_por TEXT NOT NULL,
+      creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (creado_por) REFERENCES usuarios(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS grupo_miembros (
+      grupo_id TEXT NOT NULL,
+      usuario_id TEXT NOT NULL,
+      rol TEXT DEFAULT 'miembro',
+      unirse_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (grupo_id, usuario_id),
+      FOREIGN KEY (grupo_id) REFERENCES grupos(id),
+      FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+    );
+  `);
+
+  // Guardar la base de datos inicial si es nueva
+  if (!fs.existsSync(DB_FILE)) {
+    saveDatabase(existingDb);
+  }
+
+  return existingDb;
+}
+
+function saveDatabase(database) {
+  const data = database.export();
+  fs.writeFileSync(DB_FILE, Buffer.from(data));
+}
+
+function run(db, sql, params = []) {
+  const stmt = db.prepare(sql);
+  stmt.run(params);
+  stmt.free();
+}
+
+function all(db, sql, params = []) {
+  const stmt = db.prepare(sql);
+  const result = stmt.all(params);
+  stmt.free();
+  return result;
+}
+
+function get(db, sql, params = []) {
+  const stmt = db.prepare(sql);
+  const result = stmt.get(params);
+  stmt.free();
+  return result;
+}
 
 // ---------- Helpers ----------
 const crypto = require('crypto');
@@ -75,9 +160,10 @@ function autenticar(req, res, next) {
     req.usuario = decoded;
 
     if (deviceCode) {
-      const dispositivos = leerArchivo(ARCHIVOS.dispositivos);
-      const dispositivo = dispositivos.find(d =>
-        d.codigo_unico === deviceCode && d.usuario_id === decoded.usuarioId
+      const dispositivo = get(
+        db,
+        'SELECT * FROM dispositivos WHERE codigo_unico = ? AND usuario_id = ?',
+        [deviceCode, decoded.usuarioId]
       );
       if (!dispositivo) {
         return res.status(403).json({ error: 'Código de dispositivo inválido' });
@@ -127,18 +213,18 @@ app.post('/api/register', (req, res) => {
   }
 
   try {
-    const usuarios = leerArchivo(ARCHIVOS.usuarios);
-    if (usuarios.find(u => u.email === email)) {
+    const existe = get(db, 'SELECT id FROM usuarios WHERE email = ?', [email]);
+    if (existe) {
       return res.status(409).json({ error: 'El usuario ya existe' });
     }
 
     const id = uuidv4();
     const hash = hashPassword(password);
-    const nuevo = { id, email, password_hash: hash, nombre: nombre || '', avatar: null };
-    usuarios.push(nuevo);
-    escribirArchivo(ARCHIVOS.usuarios, usuarios);
+    run(db, 'INSERT INTO usuarios (id, email, password_hash, nombre) VALUES (?, ?, ?, ?)', [id, email, hash, nombre || '']);
 
     const token = jwt.sign({ usuarioId: id, email }, JWT_SECRET, { expiresIn: '7d' });
+
+    saveDatabase(db);
 
     res.json({
       mensaje: 'Usuario registrado',
@@ -158,8 +244,7 @@ app.post('/api/login', (req, res) => {
   }
 
   try {
-    const usuarios = leerArchivo(ARCHIVOS.usuarios);
-    const usuario = usuarios.find(u => u.email === email);
+    const usuario = get(db, 'SELECT * FROM usuarios WHERE email = ?', [email]);
     if (!usuario) {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
@@ -170,8 +255,7 @@ app.post('/api/login', (req, res) => {
 
     const token = jwt.sign({ usuarioId: usuario.id, email: usuario.email }, JWT_SECRET, { expiresIn: '7d' });
 
-    const dispositivos = leerArchivo(ARCHIVOS.dispositivos);
-    const misDispositivos = dispositivos.filter(d => d.usuario_id === usuario.id);
+    const dispositivos = all(db, 'SELECT * FROM dispositivos WHERE usuario_id = ?', [usuario.id]);
 
     res.json({
       mensaje: 'Inicio de sesión exitoso',
@@ -182,8 +266,8 @@ app.post('/api/login', (req, res) => {
         nombre: usuario.nombre,
         avatar: usuario.avatar
       },
-      dispositivos: misDispositivos,
-      requiereCodigo: misDispositivos.length === 0
+      dispositivos,
+      requiereCodigo: dispositivos.length === 0
     });
   } catch (err) {
     res.status(500).json({ error: 'Error al iniciar sesión' });
@@ -197,14 +281,8 @@ app.post('/api/dispositivo/registrar', autenticar, (req, res) => {
   const codigoUnico = generarCodigoUnico();
   const id = uuidv4();
 
-  const dispositivos = leerArchivo(ARCHIVOS.dispositivos);
-  dispositivos.push({
-    id,
-    usuario_id: usuarioId,
-    codigo_unico: codigoUnico,
-    nombre_dispositivo: nombreDispositivo || 'Dispositivo'
-  });
-  escribirArchivo(ARCHIVOS.dispositivos, dispositivos);
+  run(db, 'INSERT INTO dispositivos (id, usuario_id, codigo_unico, nombre_dispositivo) VALUES (?, ?, ?, ?)', [id, usuarioId, codigoUnico, nombreDispositivo || 'Dispositivo']);
+  saveDatabase(db);
 
   res.json({
     mensaje: 'Dispositivo registrado',
@@ -214,18 +292,28 @@ app.post('/api/dispositivo/registrar', autenticar, (req, res) => {
 });
 
 app.get('/api/dispositivos', autenticar, (req, res) => {
-  const dispositivos = leerArchivo(ARCHIVOS.dispositivos);
-  const misDispositivos = dispositivos.filter(d => d.usuario_id === req.usuario.usuarioId);
-  res.json({ dispositivos: misDispositivos });
+  const dispositivos = all(db, 'SELECT * FROM dispositivos WHERE usuario_id = ?', [req.usuario.usuarioId]);
+  res.json({ dispositivos });
 });
 
 // Enviar mensaje (texto y/o archivo) — requiere código de dispositivo
 app.post('/api/mensajes', autenticar, upload.single('archivo'), (req, res) => {
-  const { texto, destinatarioId } = req.body;
+  const { texto, destinatarioId, grupoId } = req.body;
   const archivo = req.file;
 
   if (!texto && !archivo) {
     return res.status(400).json({ error: 'Mensaje o archivo requerido' });
+  }
+
+  if (grupoId) {
+    const esMiembro = get(
+      db,
+      'SELECT 1 FROM grupo_miembros WHERE grupo_id = ? AND usuario_id = ?',
+      [grupoId, req.usuario.usuarioId]
+    );
+    if (!esMiembro) {
+      return res.status(403).json({ error: 'No eres miembro de este grupo' });
+    }
   }
 
   let tipo = 'text';
@@ -245,10 +333,20 @@ app.post('/api/mensajes', autenticar, upload.single('archivo'), (req, res) => {
   }
 
   const id = uuidv4();
+  const creado_en = new Date().toISOString();
+
+  run(db, `
+    INSERT INTO mensajes (id, remitente_id, destinatario_id, grupo_id, tipo, texto, file_path, file_name, file_size, mime_type, leido, estado, creado_en)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [id, req.usuario.usuarioId, destinatarioId || null, grupoId || null, tipo, texto || null, filePath, fileName, fileSize, mimeType, 0, 'enviado', creado_en]);
+
+  saveDatabase(db);
+
   const mensaje = {
     id,
     remitente_id: req.usuario.usuarioId,
     destinatario_id: destinatarioId || null,
+    grupo_id: grupoId || null,
     tipo,
     texto: texto || null,
     file_path: filePath,
@@ -256,67 +354,219 @@ app.post('/api/mensajes', autenticar, upload.single('archivo'), (req, res) => {
     file_size: fileSize,
     mime_type: mimeType,
     leido: 0,
-    creado_en: new Date().toISOString()
+    estado: 'enviado',
+    leido_en: null,
+    creado_en
   };
-
-  const mensajes = leerArchivo(ARCHIVOS.mensajes);
-  mensajes.push(mensaje);
-  escribirArchivo(ARCHIVOS.mensajes, mensajes);
 
   res.json({ mensaje: 'Mensaje enviado', mensaje });
 });
 
 // Obtener mensajes — requiere código de dispositivo
 app.get('/api/mensajes', autenticar, (req, res) => {
-  const mensajes = leerArchivo(ARCHIVOS.mensajes);
-  const usuarios = leerArchivo(ARCHIVOS.usuarios);
+  const misGrupos = all(
+    db,
+    'SELECT grupo_id FROM grupo_miembros WHERE usuario_id = ?',
+    [req.usuario.usuarioId]
+  ).map(r => r.grupo_id);
 
-  const filtrados = mensajes.filter(m =>
-    m.remitente_id === req.usuario.usuarioId ||
-    m.destinatario_id === req.usuario.usuarioId ||
-    m.destinatario_id === null
-  ).sort((a, b) => new Date(a.creado_en) - new Date(b.creado_en));
+  const placeholders = misGrupos.length > 0 ? misGrupos.map(() => '?').join(',') : 'NULL';
 
-  const resultado = filtrados.map(m => {
-    const autor = usuarios.find(u => u.id === m.remitente_id);
-    return {
-      ...m,
-      remitente_email: autor ? autor.email : '',
-      remitente_nombre: autor ? autor.nombre : '',
-      remitente_avatar: autor ? autor.avatar : null
-    };
-  });
+  const mensajes = all(
+    db,
+    `
+    SELECT m.*, u.email as remitente_email, u.nombre as remitente_nombre, u.avatar as remitente_avatar
+    FROM mensajes m
+    JOIN usuarios u ON m.remitente_id = u.id
+    WHERE m.remitente_id = ?
+       OR m.destinatario_id = ?
+       OR m.destinatario_id IS NULL
+       OR (m.grupo_id IS NOT NULL AND m.grupo_id IN (${placeholders}))
+    ORDER BY m.creado_en ASC
+  `,
+    [req.usuario.usuarioId, req.usuario.usuarioId, ...misGrupos]
+  );
 
-  res.json({ mensajes: resultado });
+  res.json({ mensajes });
+});
+
+// Marcar un mensaje como leído (solo el destinatario)
+app.post('/api/mensajes/:id/leer', autenticar, (req, res) => {
+  const mensaje = get(db, 'SELECT * FROM mensajes WHERE id = ?', [req.params.id]);
+  if (!mensaje) {
+    return res.status(404).json({ error: 'Mensaje no encontrado' });
+  }
+  if (mensaje.destinatario_id !== req.usuario.usuarioId) {
+    return res.status(403).json({ error: 'No autorizado' });
+  }
+
+  const ahora = new Date().toISOString();
+  run(db, `UPDATE mensajes SET estado = 'leido', leido = 1, leido_en = ? WHERE id = ?`, [ahora, req.params.id]);
+  saveDatabase(db);
+
+  const actualizado = get(db, 'SELECT * FROM mensajes WHERE id = ?', [req.params.id]);
+  res.json({ ok: true, mensaje: actualizado });
+});
+
+// Marcar todos los mensajes de un remitente como leídos
+app.post('/api/mensajes/marcar-leidos', autenticar, (req, res) => {
+  const { remitente_id } = req.body;
+  if (!remitente_id) {
+    return res.status(400).json({ error: 'remitente_id requerido' });
+  }
+
+  const ahora = new Date().toISOString();
+  run(
+    db,
+    `UPDATE mensajes SET estado = 'leido', leido = 1, leido_en = ? WHERE remitente_id = ? AND destinatario_id = ? AND estado != 'leido'`,
+    [ahora, remitente_id, req.usuario.usuarioId]
+  );
+  saveDatabase(db);
+
+  res.json({ ok: true });
+});
+
+// ---------- Grupos ----------
+
+app.post('/api/grupos', autenticar, (req, res) => {
+  const { nombre, miembros } = req.body;
+  const creadorId = req.usuario.usuarioId;
+
+  if (!nombre || !nombre.trim()) {
+    return res.status(400).json({ error: 'Nombre del grupo requerido' });
+  }
+
+  const id = uuidv4();
+  const creado_en = new Date().toISOString();
+
+  run(db, 'INSERT INTO grupos (id, nombre, creado_por, creado_en) VALUES (?, ?, ?, ?)', [id, nombre.trim(), creadorId, creado_en]);
+  run(db, 'INSERT INTO grupo_miembros (grupo_id, usuario_id, rol, unirse_en) VALUES (?, ?, ?, ?)', [id, creadorId, 'admin', creado_en]);
+
+  if (Array.isArray(miembros)) {
+    miembros.forEach(uid => {
+      if (uid !== creadorId) {
+        run(db, 'INSERT INTO grupo_miembros (grupo_id, usuario_id, rol, unirse_en) VALUES (?, ?, ?, ?)', [id, uid, 'miembro', creado_en]);
+      }
+    });
+  }
+
+  saveDatabase(db);
+
+  res.json({ mensaje: 'Grupo creado', grupo: { id, nombre: nombre.trim(), creado_por: creadorId, creado_en } });
+});
+
+app.get('/api/grupos', autenticar, (req, res) => {
+  const misGrupos = all(
+    db,
+    `
+    SELECT g.*, COUNT(gm.usuario_id) as totalMiembros,
+           MAX(CASE WHEN gm.usuario_id = ? AND gm.rol = 'admin' THEN 1 ELSE 0 END) as esAdmin
+    FROM grupos g
+    JOIN grupo_miembros gm ON g.id = gm.grupo_id
+    WHERE gm.usuario_id = ?
+    GROUP BY g.id
+    `,
+    [req.usuario.usuarioId, req.usuario.usuarioId]
+  );
+
+  res.json({ grupos: misGrupos });
+});
+
+app.get('/api/grupos/:id', autenticar, (req, res) => {
+  const grupo = get(db, 'SELECT * FROM grupos WHERE id = ?', [req.params.id]);
+  if (!grupo) {
+    return res.status(404).json({ error: 'Grupo no encontrado' });
+  }
+
+  const esMiembro = get(
+    db,
+    'SELECT 1 FROM grupo_miembros WHERE grupo_id = ? AND usuario_id = ?',
+    [grupo.id, req.usuario.usuarioId]
+  );
+  if (!esMiembro) {
+    return res.status(403).json({ error: 'No eres miembro de este grupo' });
+  }
+
+  const grupoMiembros = all(
+    db,
+    `
+    SELECT u.id as usuarioId, u.email, u.nombre, gm.rol
+    FROM grupo_miembros gm
+    JOIN usuarios u ON gm.usuario_id = u.id
+    WHERE gm.grupo_id = ?
+    `,
+    [grupo.id]
+  );
+
+  res.json({ grupo: { ...grupo, miembros: grupoMiembros } });
+});
+
+app.post('/api/grupos/:id/miembros', autenticar, (req, res) => {
+  const { usuarioId } = req.body;
+
+  const grupo = get(db, 'SELECT * FROM grupos WHERE id = ?', [req.params.id]);
+  if (!grupo) {
+    return res.status(404).json({ error: 'Grupo no encontrado' });
+  }
+
+  const soyAdmin = get(
+    db,
+    "SELECT 1 FROM grupo_miembros WHERE grupo_id = ? AND usuario_id = ? AND rol = 'admin'",
+    [grupo.id, req.usuario.usuarioId]
+  );
+  if (!soyAdmin) {
+    return res.status(403).json({ error: 'Solo el administrador puede agregar miembros' });
+  }
+
+  const yaExiste = get(
+    db,
+    'SELECT 1 FROM grupo_miembros WHERE grupo_id = ? AND usuario_id = ?',
+    [grupo.id, usuarioId]
+  );
+  if (yaExiste) {
+    return res.status(409).json({ error: 'El usuario ya es miembro' });
+  }
+
+  const ahora = new Date().toISOString();
+  run(db, 'INSERT INTO grupo_miembros (grupo_id, usuario_id, rol, unirse_en) VALUES (?, ?, ?, ?)', [grupo.id, usuarioId, 'miembro', ahora]);
+  saveDatabase(db);
+
+  res.json({ mensaje: 'Miembro agregado' });
 });
 
 // Contactos (todos los usuarios menos yo)
 app.get('/api/contactos', autenticar, (req, res) => {
-  const usuarios = leerArchivo(ARCHIVOS.usuarios);
-  const contactos = usuarios.filter(u => u.id !== req.usuario.usuarioId).map(u => ({
-    id: u.id,
-    email: u.email,
-    nombre: u.nombre,
-    avatar: u.avatar
-  }));
+  const contactos = all(db, 'SELECT id, email, nombre, avatar FROM usuarios WHERE id != ?', [req.usuario.usuarioId]);
   res.json({ contactos });
 });
 
 // Perfil
 app.get('/api/perfil', autenticar, (req, res) => {
-  const usuarios = leerArchivo(ARCHIVOS.usuarios);
-  const usuario = usuarios.find(u => u.id === req.usuario.usuarioId);
+  const usuario = get(db, 'SELECT id, email, nombre, avatar, creado_en FROM usuarios WHERE id = ?', [req.usuario.usuarioId]);
   if (!usuario) {
     return res.status(404).json({ error: 'Usuario no encontrado' });
   }
-  res.json({ usuario: { id: usuario.id, email: usuario.email, nombre: usuario.nombre, avatar: usuario.avatar } });
+  res.json({ usuario });
 });
 
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
-  console.log(`Dominio empresa permitido: @${EMPRESA_DOMINIO}`);
-  console.log(`Archivos en: ${UPLOADS_DIR}`);
-  console.log(`Datos JSON en: ${DATA_DIR}`);
+// Guardar BD al cerrar proceso
+process.on('SIGINT', () => {
+  if (db) saveDatabase(db);
+  process.exit(0);
+});
+
+// Inicializar base de datos y servidor
+initDatabase().then(database => {
+  db = database;
+  app.listen(PORT, () => {
+    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+    console.log(`Dominio empresa permitido: @${EMPRESA_DOMINIO}`);
+    console.log(`Base de datos SQLite: ${DB_FILE}`);
+    console.log(`Archivos en: ${UPLOADS_DIR}`);
+  });
+}).catch(err => {
+  console.error('Error iniciando base de datos:', err);
+  process.exit(1);
 });
 
 module.exports = app;
