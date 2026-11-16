@@ -579,11 +579,54 @@ function escapeHtml(texto) {
   return div.innerHTML;
 }
 
+// ---------- Tema oscuro ----------
+function inicializarTema() {
+  const temaGuardado = localStorage.getItem('tema');
+  const btnTema = document.getElementById('btn-tema');
+  const html = document.documentElement;
+
+  // Determinar tema: preferencia guardada, luego sistema, luego claro por defecto
+  let tema = temaGuardado;
+  if (!tema) {
+    const prefiereOscuro = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    tema = prefiereOscuro ? 'oscuro' : 'claro';
+  }
+
+  aplicarTema(tema, btnTema);
+}
+
+function aplicarTema(tema, btn) {
+  const html = document.documentElement;
+  html.setAttribute('data-tema', tema);
+  localStorage.setItem('tema', tema);
+
+  // Cambiar icono del botón
+  if (btn) {
+    btn.textContent = tema === 'oscuro' ? '☀️' : '🌙';
+    btn.title = tema === 'oscuro' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro';
+  }
+}
+
+// Alternar tema al hacer clic
+document.addEventListener('DOMContentLoaded', () => {
+  const btnTema = document.getElementById('btn-tema');
+  if (btnTema) {
+    btnTema.addEventListener('click', () => {
+      const html = document.documentElement;
+      const temaActual = html.getAttribute('data-tema') || 'claro';
+      const nuevoTema = temaActual === 'claro' ? 'oscuro' : 'claro';
+      aplicarTema(nuevoTema, btnTema);
+    });
+  }
+});
+
 // Inicialización
 document.addEventListener('DOMContentLoaded', () => {
   const tok = localStorage.getItem('token');
   const user = localStorage.getItem('usuario');
   const dc = localStorage.getItem('deviceCode');
+
+  inicializarTema();
 
   if (tok && user) {
     token = tok;

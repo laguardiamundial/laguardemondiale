@@ -16,6 +16,168 @@
   --tg-azul-texto: #0078d7;
 }
 
+/* Modo oscuro */
+[data-tema="oscuro"] {
+  --tg-fondo: #1a1a1a;
+  --tg-fondo-chat: #0f172a;
+  --tg-fondo-chat-alt: #1e293b;
+  --tg-blanco: #0f172a;
+  --tg-texto: #f8fafc;
+  --tg-texto-suave: #94a3b8;
+  --tg-burbuja-mio: #1e3a8a;
+  --tg-burbuja-otro: #1e293b;
+  --tg-enviado: #16a34a;
+  --tg-borde: #334155;
+  --tg-sombra: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* Ajustes específicos para modo oscuro */
+[data-tema="oscuro"] .tarjeta {
+  background: #1e293b;
+  border: 1px solid #334155;
+}
+
+[data-tema="oscuro"] .tarjeta-inicio {
+  background: transparent;
+}
+
+[data-tema="oscuro"] .campo input {
+  background: #0f172a;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+[data-tema="oscuro"] .campo input:focus {
+  border-color: var(--tg-azul);
+  color: #f8fafc;
+}
+
+[data-tema="oscuro"] .btn-secundario {
+  background: #334155;
+  color: #f8fafc;
+}
+
+[data-tema="oscuro"] .btn-secundario:hover:not(:disabled) {
+  background: #475569;
+}
+
+[data-tema="oscuro"] .btn-texto {
+  color: var(--tg-azul);
+}
+
+[data-tema="oscuro"] .btn-texto:hover {
+  color: #38bdf8;
+}
+
+[data-tema="oscuro"] .conv-item {
+  background: #1e293b;
+}
+
+[data-tema="oscuro"] .conv-item:hover {
+  background: #334155;
+}
+
+[data-tema="oscuro"] .conv-item.activo {
+  background: #1e3a8a;
+}
+
+[data-tema="oscuro"] .conv-avatar {
+  background: #334155;
+  color: #94a3b8;
+}
+
+[data-tema="oscuro"] .msg-meta {
+  color: #64748b;
+}
+
+[data-tema="oscuro"] .msg-texto {
+  color: #f8fafc;
+}
+
+[data-tema="oscuro"] .msg-archivo {
+  background: #334155;
+}
+
+[data-tema="oscuro"] .msg-archivo .nombre {
+  color: #f8fafc;
+}
+
+[data-tema="oscuro"] .msg-archivo .tamano {
+  color: #94a3b8;
+}
+
+[data-tema="oscuro"] .codigo {
+  background: var(--tg-azul);
+  color: #fff;
+}
+
+[data-tema="oscuro"] .tg-header {
+  background: #1e293b;
+  border-bottom-color: #334155;
+}
+
+[data-tema="oscuro"] .tg-sidebar {
+  background: #1e293b;
+  border-right-color: #334155;
+}
+
+[data-tema="oscuro"] .tg-chat-header {
+  background: #1e293b;
+  border-bottom-color: #334155;
+}
+
+[data-tema="oscuro"] .tg-enviar {
+  background: #1e293b;
+  border-top-color: #334155;
+}
+
+[data-tema="oscuro"] #input-mensaje {
+  background: #0f172a;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+[data-tema="oscuro"] #input-mensaje:focus {
+  border-color: var(--tg-azul);
+  color: #f8fafc;
+}
+
+[data-tema="oscuro"] .tg-vacio h3 {
+  color: #f8fafc;
+}
+
+[data-tema="oscuro"] .tg-vacio {
+  color: #94a3b8;
+}
+
+[data-tema="oscuro"] .overlay-sidebar {
+  background: rgba(0,0,0,0.6);
+}
+
+/* Botón de tema en header */
+.btn-tema {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.3rem;
+  padding: 0.4rem;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.btn-tema:hover {
+  background: rgba(0,0,0,0.08);
+}
+
+[data-tema="oscuro"] .btn-tema:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+/* Transición suave al cambiar tema */
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
