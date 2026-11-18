@@ -27,6 +27,10 @@ app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(UPLOADS_DIR));
 
+// Servir el frontend (www) desde el mismo servidor
+const FRONTEND_DIR = path.join(ROOT, '..', 'frontend', 'www');
+app.use(express.static(FRONTEND_DIR));
+
 // ---------- Base de datos SQLite (sql.js) ----------
 let db;
 let server;
@@ -122,16 +126,26 @@ function run(db, sql, params = []) {
   stmt.free();
 }
 
+// Devuelve un array de objetos (filas) con nombres de columna
 function all(db, sql, params = []) {
   const stmt = db.prepare(sql);
-  const result = stmt.all(params);
+  stmt.bind(params);
+  const rows = [];
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject());
+  }
   stmt.free();
-  return result;
+  return rows;
 }
 
+// Devuelve un objeto (fila) o undefined si no existe
 function get(db, sql, params = []) {
   const stmt = db.prepare(sql);
-  const result = stmt.get(params);
+  stmt.bind(params);
+  let result;
+  if (stmt.step()) {
+    result = stmt.getAsObject();
+  }
   stmt.free();
   return result;
 }
@@ -619,6 +633,12 @@ app.get('/api/perfil', autenticar, (req, res) => {
     return res.status(404).json({ error: 'Usuario no encontrado' });
   }
   res.json({ usuario });
+});
+
+// Ruta raíz: servir la app (sin caché para evitar versiones viejas)
+app.get('/', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.sendFile(path.join(FRONTEND_DIR, 'index.html'));
 });
 
 // Guardar BD al cerrar proceso

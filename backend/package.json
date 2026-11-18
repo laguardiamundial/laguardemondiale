@@ -1,5 +1,5 @@
 {
-  "name": "mensajeria-empresa-backend",
+  "name": "codmors-backend",
   "version": "2.1.0",
   "description": "Backend de mensajería privada estilo Telegram para empresa",
   "main": "server.js",

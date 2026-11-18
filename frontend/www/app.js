@@ -1,3 +1,4 @@
+// Por USB, adb reverse conecta el localhost del teléfono con el servidor del PC.
 const API_URL = 'http://localhost:3001/api';
 
 let token = null;
@@ -57,11 +58,15 @@ function cerrarDialogo(id) {
 }
 
 function mostrarPantallaApp() {
-  document.getElementById('pantalla-app').hidden = false;
+  const app = document.getElementById('pantalla-app');
+  app.hidden = false;
+  app.classList.add('activa');
 }
 
 function ocultarPantallaApp() {
-  document.getElementById('pantalla-app').hidden = true;
+  const app = document.getElementById('pantalla-app');
+  app.hidden = true;
+  app.classList.remove('activa');
 }
 
 // ---------- Socket.io ----------
@@ -130,14 +135,14 @@ document.getElementById('form-registro').addEventListener('submit', async (e) =>
       mostrarMensaje('msg-registro', data.error || 'Error al registrar');
       return;
     }
-    token = data.token;
-    usuarioActual = data.usuario;
-    localStorage.setItem('token', token);
-    localStorage.setItem('usuario', JSON.stringify(usuarioActual));
-    mostrarMensaje('msg-registro', 'Cuenta creada. Iniciando sesión...', 'exito');
+    // La cuenta se crea, pero el usuario debe iniciar sesión explícitamente.
+    document.getElementById('form-registro').reset();
+    mostrarMensaje('msg-registro', 'Cuenta creada correctamente. Ahora inicia sesión.', 'exito');
     setTimeout(() => {
       cerrarDialogo('registro');
-      verificarDispositivoYPasarAChat();
+      document.getElementById('log-email').value = email;
+      abrirDialogo('login');
+      mostrarMensaje('msg-login', 'Cuenta creada correctamente. Inicia sesión para continuar.', 'exito');
     }, 1000);
   } catch (err) {
     mostrarMensaje('msg-registro', 'Error de conexión con el servidor');
@@ -198,41 +203,48 @@ function verificarDispositivoYPasarAChat(dataLogin = null) {
 }
 
 // Código único de dispositivo
-document.getElementById('form-codigo').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const nombre = document.getElementById('nombre-dispositivo').value.trim() || 'Dispositivo';
+let dispositivoRegistrado = false;
 
-  try {
-    const res = await fetch(`${API_URL}/dispositivo/registrar`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ nombreDispositivo: nombre })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      mostrarMensaje('msg-codigo', data.error || 'Error al registrar dispositivo');
-      return;
-    }
-    document.getElementById('codigo-unico').textContent = data.codigoUnico;
-    deviceCode = data.codigoUnico;
-    localStorage.setItem('deviceCode', deviceCode);
-    document.getElementById('btn-guardar-codigo').textContent = 'Ir al chat';
-    document.getElementById('btn-guardar-codigo').onclick = () => {
-      navegarAVista(() => {
-        cerrarDialogo('codigo');
-        mostrarPantallaApp();
-        cargarApp();
-        conectarSocket();
+document.getElementById('btn-guardar-codigo').addEventListener('click', async () => {
+  if (!dispositivoRegistrado) {
+    // Primer clic: registrar el dispositivo y mostrar el código
+    const nombre = document.getElementById('nombre-dispositivo').value.trim() || 'Dispositivo';
+    try {
+      const res = await fetch(`${API_URL}/dispositivo/registrar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ nombreDispositivo: nombre })
       });
-    };
-    mostrarMensaje('msg-codigo', 'Código guardado. Guárdalo en un lugar seguro.', 'exito');
-  } catch (err) {
-    mostrarMensaje('msg-codigo', 'Error de conexión');
+      const data = await res.json();
+      if (!res.ok) {
+        mostrarMensaje('msg-codigo', data.error || 'Error al registrar dispositivo');
+        return;
+      }
+      document.getElementById('codigo-unico').textContent = data.codigoUnico;
+      deviceCode = data.codigoUnico;
+      localStorage.setItem('deviceCode', deviceCode);
+      dispositivoRegistrado = true;
+      document.getElementById('btn-guardar-codigo').textContent = 'Ir al chat';
+      mostrarMensaje('msg-codigo', 'Código guardado. Guárdalo en un lugar seguro.', 'exito');
+    } catch (err) {
+      mostrarMensaje('msg-codigo', 'Error de conexión');
+    }
+  } else {
+    // Segundo clic: entrar al chat
+    navegarAVista(() => {
+      cerrarDialogo('codigo');
+      mostrarPantallaApp();
+      cargarApp();
+      conectarSocket();
+    });
   }
 });
+
+// Evitar que el formulario se envíe solo (Enter)
+document.getElementById('form-codigo').addEventListener('submit', (e) => e.preventDefault());
 
 document.getElementById('btn-copiar-codigo').addEventListener('click', () => {
   const codigo = document.getElementById('codigo-unico').textContent;

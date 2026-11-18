@@ -99,7 +99,8 @@ body {
 }
 
 /* Dialog nativo (Modern Web Guidance - Popover/Dialog API) */
-pantalla-modal {
+.pantalla-modal {
+  display: flex;
   width: min(90vw, 480px);
   max-height: 90vh;
   padding: 0;
@@ -110,12 +111,12 @@ pantalla-modal {
   color: var(--tg-texto);
 }
 
-pantalla-modal::backdrop {
+.pantalla-modal::backdrop {
   background: oklch(0 0 0 / 0.4);
   backdrop-filter: blur(4px);
 }
 
-pantalla-modal[data-tema="oscuro"] {
+.pantalla-modal[data-tema="oscuro"] {
   background: oklch(0.18 0 0);
   color: var(--tg-texto);
 }
@@ -127,6 +128,12 @@ pantalla-modal[data-tema="oscuro"] {
 
 .pantalla-modal {
   animation: fadeIn var(--tg-transicion);
+}
+
+/* Capacitor/WebView: mostrar el diálogo cuando showModal() lo abre. */
+.pantalla-modal[open] {
+  display: flex;
+  flex-direction: column;
 }
 
 /* =========================================

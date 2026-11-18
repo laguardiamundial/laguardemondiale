@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#0078d7" />
-  <title>Mensajería Empresa</title>
+  <title>Codmors</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="manifest" href="manifest.json" />
 </head>
@@ -14,8 +14,8 @@
     <!-- Pantalla de bienvenida (diálogo moderno) -->
     <dialog id="pantalla-inicio" class="pantalla pantalla-modal" data-tema="claro">
       <form method="dialog" class="tarjeta-inicio">
-        <div class="logo">M<sup>E</sup></div>
-        <h1>Mensajería <span class="acento">Empresa</span></h1>
+        <div class="logo">C</div>
+        <h1>Codmors</h1>
         <p>App privada de mensajería para la compañía.<br>Acceso solo con credenciales corporativas y código de dispositivo.</p>
         <div class="botones">
           <button class="btn btn-principal btn-ancho" id="btn-ingresar">Ingresar</button>
@@ -81,7 +81,7 @@
           <label for="nombre-dispositivo">Nombre del dispositivo</label>
           <input type="text" id="nombre-dispositivo" name="nombreDispositivo" placeholder="Mi PC / Mi teléfono" />
         </div>
-        <button type="submit" class="btn btn-principal btn-ancho" id="btn-guardar-codigo">He guardado el código</button>
+        <button type="button" class="btn btn-principal btn-ancho" id="btn-guardar-codigo">He guardado el código</button>
         <div id="msg-codigo" class="mensaje error" role="alert" aria-live="polite"></div>
       </form>
     </dialog>
@@ -174,7 +174,7 @@
   </div>
 
   <input type="file" id="input-avatar" accept="image/*" style="display:none" />
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="socket.io/socket.io.js"></script>
   <script src="app.js?v=4"></script>
 </body>
 </html>

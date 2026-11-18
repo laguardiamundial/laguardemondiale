@@ -1,0 +1,5 @@
+{
+  "appId": "com.empresa.mensajeria",
+  "appName": "Codmors",
+  "webDir": "./"
+}

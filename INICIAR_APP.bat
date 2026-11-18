@@ -1,5 +1,5 @@
 @echo off
-title Mensajeria Empresa - Inicio Automático
+title Codmors - Inicio Automático
 cd /d "%~dp0\backend"
 
 echo ============================================
@@ -25,16 +25,18 @@ if not exist ".env" (
     copy .env.example .env >nul
 )
 
-echo Iniciando servidor en http://localhost:3001
-echo (Puerto 3001 para no chocar con otras apps)
-echo (Deja esta ventana abierta mientras usas la app)
+echo Comprobando servidor en http://localhost:3001
 echo.
 
-:: Iniciar servidor en segundo plano
-start "" node server.js
-
-:: Esperar a que levante
-timeout /t 3 >nul
+:: No iniciar una segunda copia si el puerto ya esta ocupado
+powershell -NoProfile -Command "if (Get-NetTCPConnection -LocalPort 3001 -State Listen -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }"
+if not errorlevel 1 (
+    echo El servidor ya esta funcionando en el puerto 3001.
+) else (
+    echo Iniciando servidor...
+    start "" node server.js
+    timeout /t 3 >nul
+)
 
 :: Abrir la app en el navegador
 start "" "%~dp0\frontend\index.html"

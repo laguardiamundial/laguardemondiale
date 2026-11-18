@@ -1,6 +1,6 @@
 {
-  "name": "Mensajería Empresa",
-  "short_name": "Mensajería",
+  "name": "Codmors",
+  "short_name": "Codmors",
   "description": "App privada de mensajería para la empresa con credenciales corporativas y código de dispositivo",
   "start_url": "./index.html",
   "display": "standalone",
