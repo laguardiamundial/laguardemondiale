@@ -1,4 +1,4 @@
-package com.empresa.mensajeria;
+package com.codmors.app;
 
 import com.getcapacitor.BridgeActivity;
 
